@@ -37,4 +37,16 @@ app.post('/room/leave', (req, res) => {
   res.json({ success: true });
 });
 
+// GET /room/:roomCode/peers - Get all peers in a room
+app.get('/room/:roomCode/peers', (req, res) => {
+    const { roomCode } = req.params;
+    
+    if (!rooms.has(roomCode)) {
+        return res.status(404).json({ error: 'Room not found' });
+    }
+    
+    const peers = Array.from(rooms.get(roomCode));
+    res.json({ peers });
+});
+
 app.listen(3001, () => console.log('Room server on :3001'));
