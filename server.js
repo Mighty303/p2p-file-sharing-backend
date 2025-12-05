@@ -12,12 +12,6 @@ const server = http.createServer(app);
 app.use(cors());
 app.use(express.json());
 
-// Generate unique peer ID endpoint (MUST be before PeerJS middleware)
-app.get('/peerjs/id', (req, res) => {
-  const peerId = uuidv4();
-  res.json({ id: peerId });
-});
-
 // Create PeerJS server with proper path configuration
 // When path is set to the full route, mount at root
 const peerServer = ExpressPeerServer(server, {
@@ -28,6 +22,12 @@ const peerServer = ExpressPeerServer(server, {
 
 // Mount PeerJS at root - it will handle /peerjs internally
 app.use(peerServer);
+
+// Generate unique peer ID endpoint (moved after PeerJS to avoid conflicts)
+app.get('/api/peer-id', (req, res) => {
+  const peerId = uuidv4();
+  res.json({ id: peerId });
+});
 
 // Store rooms and peer metadata
 const rooms = new Map(); // roomCode -> Map of peerId -> peer metadata
