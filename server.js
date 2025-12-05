@@ -199,6 +199,55 @@ app.get('/turn-credentials', async (req, res) => {
   }
 });
 
+const pendingNotifications = new Map(); // peerId -> [events]
+
+app.post('/room/join', (req, res) => {
+  const { roomCode, peerId } = req.body;
+  
+  if (!rooms.has(roomCode)) {
+    return res.status(404).json({ error: 'Room not found' });
+  }
+  
+  const room = rooms.get(roomCode);
+  const existingPeers = Array.from(room.keys());
+  
+  // Add new peer
+  room.set(peerId, {
+    peerId,
+    joinedAt: Date.now(),
+    lastSeen: Date.now()
+  });
+  
+  console.log(`✅ Peer joined: ${peerId} → Room: ${roomCode}`);
+  
+  // NOTIFY existing peers about new joiner
+  existingPeers.forEach(existingPeer => {
+    if (!pendingNotifications.has(existingPeer)) {
+      pendingNotifications.set(existingPeer, []);
+    }
+    pendingNotifications.get(existingPeer).push({
+      type: 'peer_joined',
+      peerId: peerId,
+      timestamp: Date.now()
+    });
+  });
+  
+  res.json({ 
+    peers: existingPeers,
+    roomSize: room.size
+  });
+});
+
+// New endpoint for getting notifications
+app.get('/notifications/:peerId', (req, res) => {
+  const { peerId } = req.params;
+  
+  const notifications = pendingNotifications.get(peerId) || [];
+  pendingNotifications.delete(peerId); // Clear after reading
+  
+  res.json({ notifications });
+});
+
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
