@@ -1,6 +1,6 @@
 // Enhanced signaling server with PeerJS + ICE candidate exchange
 const express = require('express');
-const { ExpressPeerServer } = require('peer');
+const { ExpressPeerServer } = require('peerjs-server');
 const cors = require('cors');
 const http = require('http');
 
