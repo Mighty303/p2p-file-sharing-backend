@@ -1,14 +1,26 @@
-// Enhanced signaling server with ICE candidate exchange
+// Enhanced signaling server with PeerJS + ICE candidate exchange
 const express = require('express');
+const { ExpressPeerServer } = require('peer');
 const cors = require('cors');
+const http = require('http');
+
 const app = express();
+const server = http.createServer(app);
 
 app.use(cors());
 app.use(express.json());
 
+// Create PeerJS server
+const peerServer = ExpressPeerServer(server, {
+  path: '/peerjs',
+  debug: true,
+  allow_discovery: true
+});
+
+app.use('/peerjs', peerServer);
+
 // Store rooms and peer metadata
 const rooms = new Map(); // roomCode -> Map of peerId -> peer metadata
-const iceQueue = new Map(); // peerId -> Array of pending ICE candidates
 
 // Create or join room
 app.post('/room/create', (req, res) => {
@@ -23,6 +35,8 @@ app.post('/room/create', (req, res) => {
     joinedAt: Date.now(),
     lastSeen: Date.now()
   });
+  
+  console.log(`✅ Room created: ${roomCode}, peer: ${peerId}`);
   
   res.json({ 
     peers: Array.from(room.keys()).filter(p => p !== peerId),
@@ -44,6 +58,8 @@ app.post('/room/join', (req, res) => {
     lastSeen: Date.now()
   });
   
+  console.log(`✅ Peer joined: ${peerId} → Room: ${roomCode}`);
+  
   res.json({ 
     peers: Array.from(room.keys()).filter(p => p !== peerId),
     roomSize: room.size
@@ -57,14 +73,14 @@ app.post('/room/leave', (req, res) => {
     const room = rooms.get(roomCode);
     room.delete(peerId);
     
+    console.log(`👋 Peer left: ${peerId} from Room: ${roomCode}`);
+    
     // Clean up empty rooms
     if (room.size === 0) {
       rooms.delete(roomCode);
+      console.log(`🗑️  Empty room deleted: ${roomCode}`);
     }
   }
-  
-  // Clean up ICE queue
-  iceQueue.delete(peerId);
   
   res.json({ success: true });
 });
@@ -92,47 +108,30 @@ app.get('/room/:roomCode/peers', (req, res) => {
   });
 });
 
-// Store ICE candidate for a peer (helps with NAT traversal)
-app.post('/ice/send', (req, res) => {
-  const { fromPeerId, toPeerId, candidate } = req.body;
-  
-  if (!iceQueue.has(toPeerId)) {
-    iceQueue.set(toPeerId, []);
-  }
-  
-  iceQueue.get(toPeerId).push({
-    from: fromPeerId,
-    candidate,
-    timestamp: Date.now()
-  });
-  
-  // Keep only last 100 candidates per peer to prevent memory issues
-  if (iceQueue.get(toPeerId).length > 100) {
-    iceQueue.get(toPeerId).shift();
-  }
-  
-  res.json({ success: true });
-});
-
-// Get pending ICE candidates
-app.get('/ice/get/:peerId', (req, res) => {
-  const { peerId } = req.params;
-  
-  const candidates = iceQueue.get(peerId) || [];
-  
-  // Clear after retrieval
-  iceQueue.delete(peerId);
-  
-  res.json({ candidates });
-});
-
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({ 
     status: 'ok',
     rooms: rooms.size,
     totalPeers: Array.from(rooms.values()).reduce((sum, room) => sum + room.size, 0),
-    uptime: process.uptime()
+    uptime: process.uptime(),
+    peerJsEnabled: true
+  });
+});
+
+app.get('/', (req, res) => {
+  res.json({
+    service: 'P2P File Sharing Backend',
+    endpoints: {
+      peerjs: '/peerjs',
+      health: '/health',
+      rooms: {
+        create: 'POST /room/create',
+        join: 'POST /room/join',
+        leave: 'POST /room/leave',
+        getPeers: 'GET /room/:roomCode/peers'
+      }
+    }
   });
 });
 
@@ -144,31 +143,32 @@ setInterval(() => {
   rooms.forEach((room, roomCode) => {
     room.forEach((peer, peerId) => {
       if (now - peer.lastSeen > STALE_THRESHOLD) {
-        console.log(`Removing stale peer ${peerId} from room ${roomCode}`);
+        console.log(`🧹 Removing stale peer ${peerId} from room ${roomCode}`);
         room.delete(peerId);
       }
     });
     
     // Clean up empty rooms
     if (room.size === 0) {
-      console.log(`Removing empty room ${roomCode}`);
+      console.log(`🧹 Removing empty room ${roomCode}`);
       rooms.delete(roomCode);
-    }
-  });
-  
-  // Clean up old ICE candidates (older than 1 minute)
-  iceQueue.forEach((candidates, peerId) => {
-    const filtered = candidates.filter(c => now - c.timestamp < 60000);
-    if (filtered.length === 0) {
-      iceQueue.delete(peerId);
-    } else {
-      iceQueue.set(peerId, filtered);
     }
   });
 }, 5 * 60 * 1000);
 
+// Log peer connections
+peerServer.on('connection', (client) => {
+  console.log(`🔗 Peer connected: ${client.getId()}`);
+});
+
+peerServer.on('disconnect', (client) => {
+  console.log(`❌ Peer disconnected: ${client.getId()}`);
+});
+
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-  console.log(`Room server running on port ${PORT}`);
-  console.log(`Features: Room management + ICE candidate exchange`);
+server.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`📡 PeerJS signaling server: /peerjs`);
+  console.log(`🏠 Room management enabled`);
+  console.log(`🌐 CORS enabled for all origins`);
 });
