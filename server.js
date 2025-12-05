@@ -51,6 +51,51 @@ app.get('/room/:roomCode/peers', (req, res) => {
   res.json({ peers });
 });
 
+// Twilio TURN credentials endpoint
+app.get('/turn-credentials', async (req, res) => {
+  const accountSid = process.env.TWILIO_ACCOUNT_SID;
+  const authToken = process.env.TWILIO_AUTH_TOKEN;
+  
+  if (!accountSid || !authToken) {
+    return res.status(500).json({ 
+      error: 'Twilio credentials not configured',
+      message: 'Set TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN environment variables'
+    });
+  }
+  
+  try {
+    // Twilio Network Traversal API endpoint
+    const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Tokens.json`;
+    const auth = Buffer.from(`${accountSid}:${authToken}`).toString('base64');
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Basic ${auth}`,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Twilio API error: ${response.status} ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    
+    // Return ICE servers in WebRTC format
+    res.json({
+      iceServers: data.ice_servers,
+      ttl: data.ttl
+    });
+  } catch (error) {
+    console.error('❌ Error fetching TURN credentials:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch TURN credentials',
+      message: error.message
+    });
+  }
+});
+
 // ADD PEERJS SERVER
 const peerServer = ExpressPeerServer(server, {
   path: '/',
