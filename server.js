@@ -19,14 +19,15 @@ app.get('/peerjs/id', (req, res) => {
 });
 
 // Create PeerJS server with proper path configuration
+// path: '/' means the internal PeerJS path (will become /peerjs/peerjs when mounted at /peerjs)
 const peerServer = ExpressPeerServer(server, {
-  path: '/peerjs',
+  path: '/',
   debug: true,
   allow_discovery: true
 });
 
-// Mount at root - PeerJS handles its own /peerjs path
-app.use(peerServer);
+// Mount PeerJS at /peerjs - this makes WebSocket available at /peerjs/peerjs
+app.use('/peerjs', peerServer);
 
 // Store rooms and peer metadata
 const rooms = new Map(); // roomCode -> Map of peerId -> peer metadata
