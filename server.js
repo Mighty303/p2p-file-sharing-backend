@@ -1,6 +1,6 @@
 // Enhanced signaling server with PeerJS + ICE candidate exchange
 const express = require('express');
-const { ExpressPeerServer } = require('peerjs-server');
+const { ExpressPeerServer } = require('peer');
 const cors = require('cors');
 const http = require('http');
 
@@ -10,14 +10,14 @@ const server = http.createServer(app);
 app.use(cors());
 app.use(express.json());
 
-// Create PeerJS server
+// Create PeerJS server - simplified configuration
 const peerServer = ExpressPeerServer(server, {
-  path: '/',
   debug: true,
   allow_discovery: true
 });
 
-app.use('/peerjs', peerServer);
+// Mount at root, let PeerJS handle its own paths
+app.use('/', peerServer);
 
 // Store rooms and peer metadata
 const rooms = new Map(); // roomCode -> Map of peerId -> peer metadata
