@@ -1,7 +1,6 @@
 // Enhanced signaling server with PeerJS + ICE candidate exchange
 require('dotenv').config();
 const express = require('express');
-const { ExpressPeerServer } = require('peerjs-server');
 const cors = require('cors');
 const http = require('http');
 const { v4: uuidv4 } = require('uuid');
@@ -11,17 +10,6 @@ const server = http.createServer(app);
 
 app.use(cors());
 app.use(express.json());
-
-// Create PeerJS server with proper path configuration
-// When path is set to the full route, mount at root
-const peerServer = ExpressPeerServer(server, {
-  path: '/peerjs',
-  debug: true,
-  allow_discovery: true
-});
-
-// Mount PeerJS at root - it will handle /peerjs internally
-app.use(peerServer);
 
 // Generate unique peer ID endpoint (moved after PeerJS to avoid conflicts)
 app.get('/api/peer-id', (req, res) => {
@@ -211,20 +199,11 @@ app.get('/turn-credentials', async (req, res) => {
   }
 });
 
-// Log peer connections
-peerServer.on('connection', (client) => {
-  console.log(`🔗 Peer connected: ${client.getId()}`);
-});
-
-peerServer.on('disconnect', (client) => {
-  console.log(`❌ Peer disconnected: ${client.getId()}`);
-});
-
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📡 PeerJS signaling server: /peerjs`);
   console.log(`🏠 Room management enabled`);
   console.log(`🔄 TURN credentials endpoint: /turn-credentials`);
   console.log(`🌐 CORS enabled for all origins`);
+  console.log(`📡 Frontend will use PeerJS cloud server (0.peerjs.com)`);
 });
