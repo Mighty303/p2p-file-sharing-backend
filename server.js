@@ -12,7 +12,7 @@ app.use(express.json());
 
 // Create PeerJS server
 const peerServer = ExpressPeerServer(server, {
-  path: '/peerjs',
+  path: '/',
   debug: true,
   allow_discovery: true
 });
