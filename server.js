@@ -1,9 +1,10 @@
 // Enhanced signaling server with PeerJS + ICE candidate exchange
 require('dotenv').config();
 const express = require('express');
-const { ExpressPeerServer } = require('peer');
+const { ExpressPeerServer } = require('peerjs-server');
 const cors = require('cors');
 const http = require('http');
+const { v4: uuidv4 } = require('uuid');
 
 const app = express();
 const server = http.createServer(app);
@@ -11,15 +12,21 @@ const server = http.createServer(app);
 app.use(cors());
 app.use(express.json());
 
+// Generate unique peer ID endpoint (MUST be before PeerJS middleware)
+app.get('/peerjs/id', (req, res) => {
+  const peerId = uuidv4();
+  res.json({ id: peerId });
+});
+
 // Create PeerJS server with proper path configuration
 const peerServer = ExpressPeerServer(server, {
-  path: '/peerjs',
+  path: '/',
   debug: true,
   allow_discovery: true
 });
 
-// Mount PeerJS middleware (it handles its own /peerjs/* routes)
-app.use(peerServer);
+// Mount PeerJS at /peerjs
+app.use('/peerjs', peerServer);
 
 // Store rooms and peer metadata
 const rooms = new Map(); // roomCode -> Map of peerId -> peer metadata
