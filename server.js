@@ -12,12 +12,13 @@ app.use(express.json());
 
 // Create PeerJS server - simplified configuration
 const peerServer = ExpressPeerServer(server, {
+  path: '/',
   debug: true,
   allow_discovery: true
 });
 
-// Mount at root, let PeerJS handle its own paths
-app.use('/', peerServer);
+// Mount PeerJS at /peerjs
+app.use('/peerjs', peerServer);
 
 // Store rooms and peer metadata
 const rooms = new Map(); // roomCode -> Map of peerId -> peer metadata
@@ -119,11 +120,17 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Root endpoint - info page
 app.get('/', (req, res) => {
   res.json({
     service: 'P2P File Sharing Backend',
+    version: '1.0.0',
     endpoints: {
-      peerjs: '/peerjs',
+      peerjs: {
+        signaling: '/peerjs/peerjs',
+        id: '/peerjs/id',
+        description: 'PeerJS signaling server'
+      },
       health: '/health',
       rooms: {
         create: 'POST /room/create',
@@ -131,7 +138,8 @@ app.get('/', (req, res) => {
         leave: 'POST /room/leave',
         getPeers: 'GET /room/:roomCode/peers'
       }
-    }
+    },
+    note: 'PeerJS client should connect to: wss://your-domain.com/peerjs with path: "/"'
   });
 });
 
