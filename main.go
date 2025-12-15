@@ -320,7 +320,12 @@ func getTurnCredentials(c *gin.Context) {
     accountSid := os.Getenv("TWILIO_ACCOUNT_SID")
     authToken := os.Getenv("TWILIO_AUTH_TOKEN")
 
+    // Add detailed logging
+    log.Printf("🔑 TWILIO_ACCOUNT_SID present: %v", accountSid != "")
+    log.Printf("🔑 TWILIO_AUTH_TOKEN present: %v", authToken != "")
+
     if accountSid == "" || authToken == "" {
+        log.Printf("❌ Missing Twilio credentials")
         c.JSON(http.StatusInternalServerError, gin.H{
             "error":   "Twilio credentials not configured",
             "message": "Set TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN environment variables",
@@ -333,6 +338,7 @@ func getTurnCredentials(c *gin.Context) {
 
     req, err := http.NewRequest("POST", url, nil)
     if err != nil {
+        log.Printf("❌ Failed to create request: %v", err)
         c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create request"})
         return
     }
@@ -352,9 +358,17 @@ func getTurnCredentials(c *gin.Context) {
     }
     defer resp.Body.Close()
 
+    // Log the response status
+    log.Printf("📥 Twilio API response status: %d", resp.StatusCode)
+
     if resp.StatusCode != http.StatusCreated {
+        // Read the error body for debugging
+        body, _ := io.ReadAll(resp.Body)
+        log.Printf("❌ Twilio API error body: %s", string(body))
+        
         c.JSON(http.StatusInternalServerError, gin.H{
             "error": fmt.Sprintf("Twilio API error: %d", resp.StatusCode),
+            "details": string(body),
         })
         return
     }
@@ -365,10 +379,12 @@ func getTurnCredentials(c *gin.Context) {
     }
 
     if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+        log.Printf("❌ Failed to parse Twilio response: %v", err)
         c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse response"})
         return
     }
 
+    log.Printf("✅ TURN credentials fetched successfully")
     c.JSON(http.StatusOK, gin.H{
         "iceServers": result.IceServers,
         "ttl":        result.TTL,
