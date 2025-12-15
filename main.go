@@ -50,9 +50,12 @@ func main() {
     // Create Gin router
     r := gin.Default()
 
-    // CORS middleware
+    // CORS middleware - only allow specific origins
     r.Use(cors.New(cors.Config{
-        AllowAllOrigins:  true,
+        AllowOrigins:     []string{
+            "https://p2p-client.martinwong.me",
+            "https://p2p-file-sharing-phbh.onrender.com",
+        },
         AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
         AllowHeaders:     []string{"Origin", "Content-Type", "Accept"},
         ExposeHeaders:    []string{"Content-Length"},
@@ -82,7 +85,7 @@ func main() {
     log.Printf("🚀 Server running on port %s", port)
     log.Println("🏠 Room management enabled")
     log.Println("🔄 TURN credentials endpoint: /turn-credentials")
-    log.Println("🌐 CORS enabled for all origins")
+    log.Println("🌐 CORS restricted to: p2p-client.martinwong.me, p2p-file-sharing-phbh.onrender.com")
     log.Println("📡 Frontend will use PeerJS cloud server (0.peerjs.com)")
 
     r.Run(":" + port)
