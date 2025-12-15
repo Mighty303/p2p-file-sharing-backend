@@ -376,7 +376,7 @@ func getTurnCredentials(c *gin.Context) {
 
     var result struct {
         IceServers []map[string]interface{} `json:"ice_servers"`
-        TTL        int                      `json:"ttl"`
+        TTL        string                      `json:"ttl"`
     }
 
     if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
